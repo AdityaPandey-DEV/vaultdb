@@ -81,7 +81,8 @@ The storage engine writes to a **Write-Ahead Log** for crash recovery, buffers d
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j4
-cd .. # Return to project root
+# Return to project root
+cd ..
 ```
 
 ### Run
