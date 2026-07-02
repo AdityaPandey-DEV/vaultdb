@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 VAULTDB_HOST = "localhost"
 VAULTDB_PORT = 6379
-API_PORT = 5000
+API_PORT = 5005
 
 def send_to_vaultdb(command: str) -> str:
     """Send a command to the C++ TCP server and return the response."""

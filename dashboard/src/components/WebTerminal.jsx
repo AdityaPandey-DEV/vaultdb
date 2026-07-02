@@ -48,7 +48,7 @@ const WebTerminal = ({ isLiveMode }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/command', {
+      const response = await fetch('http://localhost:5005/api/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: cmd })
@@ -71,7 +71,7 @@ const WebTerminal = ({ isLiveMode }) => {
     } catch (err) {
       setHistory(prev => [...prev, { 
         type: 'error', 
-        text: '✗ Connection refused. Make sure API Bridge (api/dashboard_api.py) is running on port 5000.' 
+        text: '✗ Connection refused. Make sure API Bridge (api/dashboard_api.py) is running on port 5005.' 
       }]);
     }
   };

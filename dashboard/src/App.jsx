@@ -37,7 +37,7 @@ function App() {
     
     const fetchLiveStats = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/stats');
+        const response = await fetch('http://localhost:5005/api/stats');
         if (!response.ok) throw new Error('API Error');
         const json = await response.json();
         
