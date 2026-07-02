@@ -33,9 +33,13 @@ echo "📊 Running benchmark..."
 cd "$SCRIPT_DIR"
 python3 client.py --ops 80000 --threads 4
 
+# Also copy results to dashboard for the React app
+mkdir -p "$PROJECT_DIR/dashboard/public"
+cp results.json "$PROJECT_DIR/dashboard/public/results.json"
+
 echo ""
 echo "🛑 Stopping VaultDB..."
 kill $SERVER_PID 2>/dev/null
 wait $SERVER_PID 2>/dev/null || true
 
-echo "✅ Benchmark complete! Results saved to benchmark/results.json"
+echo "✅ Benchmark complete! Results saved to benchmark/results.json and dashboard/public/results.json"

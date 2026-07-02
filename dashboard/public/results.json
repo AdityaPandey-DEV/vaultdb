@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-07-02T12:00:00",
+  "config": {"ops": 80000, "threads": 4},
+  "write": {
+    "type": "write",
+    "operations": 80000,
+    "threads": 4,
+    "duration_sec": 0.982,
+    "ops_per_sec": 81466,
+    "p50_ms": 0.012,
+    "p95_ms": 0.045,
+    "p99_ms": 0.089,
+    "errors": 0
+  },
+  "read": {
+    "type": "read",
+    "operations": 80000,
+    "threads": 1,
+    "duration_sec": 0.756,
+    "ops_per_sec": 105820,
+    "p50_ms": 0.008,
+    "p95_ms": 0.032,
+    "p99_ms": 0.067
+  }
+}
