@@ -35,8 +35,7 @@ public:
      * Create a MemTable with the given size threshold.
      * @param max_size_bytes Flush threshold in bytes (default: 4MB).
      */
-    explicit MemTable(size_t max_size_bytes = 4 * 1024 * 1024)
-        : max_size_bytes_(max_size_bytes), current_size_bytes_(0) {}
+    explicit MemTable(size_t max_size_bytes = 4 * 1024 * 1024);
 
     /**
      * Set a key-value pair in the MemTable.
@@ -47,18 +46,7 @@ public:
      *
      * Time: O(log n) — std::map insertion
      */
-    void set(const std::string& key, const std::string& value) {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        auto it = data_.find(key);
-        if (it != data_.end()) {
-            // Update existing: subtract old size, add new
-            current_size_bytes_ -= (it->first.size() + it->second.size());
-        }
-
-        data_[key] = value;
-        current_size_bytes_ += (key.size() + value.size());
-    }
+    void set(const std::string& key, const std::string& value);
 
     /**
      * Get the value for a key.
@@ -68,13 +56,7 @@ public:
      *
      * Time: O(log n) — std::map lookup
      */
-    std::optional<std::string> get(const std::string& key) {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        auto it = data_.find(key);
-        if (it == data_.end()) return std::nullopt;
-        return it->second;
-    }
+    std::optional<std::string> get(const std::string& key);
 
     /**
      * Delete a key by writing a tombstone marker.
@@ -83,53 +65,30 @@ public:
      *
      * @param key The key to delete.
      */
-    void del(const std::string& key) {
-        set(key, TOMBSTONE);
-    }
+    void del(const std::string& key);
 
     /**
      * Check if the MemTable has exceeded its size threshold.
      * When true, the LSM engine should flush this to a new SSTable.
      */
-    bool is_full() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return current_size_bytes_ >= max_size_bytes_;
-    }
+    bool is_full();
 
-    /**
-     * Get the current size in bytes.
-     */
-    size_t size_bytes() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return current_size_bytes_;
-    }
+    /** Get the current size in bytes. */
+    size_t size_bytes();
 
-    /**
-     * Get the number of entries.
-     */
-    size_t count() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return data_.size();
-    }
+    /** Get the number of entries. */
+    size_t count();
 
     /**
      * Get all key-value pairs in sorted order (for SSTable flush).
      * @return Vector of (key, value) pairs sorted by key.
      */
-    std::vector<std::pair<std::string, std::string>> get_sorted_entries() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return std::vector<std::pair<std::string, std::string>>(
-            data_.begin(), data_.end());
-    }
+    std::vector<std::pair<std::string, std::string>> get_sorted_entries();
 
     /**
      * Clear all entries (called after successful flush to SSTable).
      */
-    void clear() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        data_.clear();
-        current_size_bytes_ = 0;
-    }
+    void clear();
 
 private:
     std::map<std::string, std::string> data_;  // Sorted by key (red-black tree)
