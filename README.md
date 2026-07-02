@@ -4,7 +4,7 @@
 
 VaultDB is a systems programming project that implements a complete storage engine using the **Log-Structured Merge (LSM) Tree** architecture. Every component — from the LRU cache to the TCP server — is built from scratch using only the C++17 standard library, with no external dependencies except GoogleTest for testing.
 
-The storage engine writes to a **Write-Ahead Log** for crash recovery, buffers data in a sorted **MemTable** (std::map), flushes to immutable **SSTables** on disk, and uses an **LRU cache** for hot key access. A background **compaction thread** merges SSTables to reduce read amplification.
+The storage engine writes to a **Write-Ahead Log** for crash recovery, buffers data in a sorted **MemTable** (std::map), flushes to immutable **SSTables** on disk with **Bloom Filters** to skip unnecessary disk reads, and uses an **LRU cache** for hot key access. A background **compaction thread** merges SSTables to reduce read amplification.
 
 ---
 
@@ -58,9 +58,11 @@ The storage engine writes to a **Write-Ahead Log** for crash recovery, buffers d
 | **Write-Ahead Log** | Binary append-only file. Crash recovery via replay. |
 | **MemTable** | In-memory sorted buffer (std::map). Flushes at 4MB. |
 | **SSTable** | On-disk sorted immutable files. Sparse index every 100 keys. |
+| **Bloom Filter** | Probabilistic filter (FNV-1a + DJB2a, ~1.7% FPR). Skips disk reads. |
 | **LSM Engine** | Coordinates all components. Background compaction thread. |
 | **TCP Server** | select()-based non-blocking I/O. Redis-compatible port 6379. |
 | **Protocol** | Text protocol: SET/GET/DEL/TTL/PING/BENCH/STATS commands. |
+| **vault-cli** | Interactive Python CLI with colorized output for live demos. |
 | **Benchmark** | Python client measuring ops/sec and p50/p95/p99 latency. |
 
 ---
@@ -89,6 +91,18 @@ make -j4
 ```bash
 cd build
 ctest --verbose
+```
+
+### Interactive CLI
+```bash
+# Terminal 1: Start VaultDB
+./build/vaultdb
+
+# Terminal 2: Connect with vault-cli (recommended)
+python3 cli/vault_cli.py
+
+# Or use raw netcat
+nc localhost 6379
 ```
 
 ### Benchmark
@@ -155,19 +169,16 @@ STATS                    → STATS writes=1000 reads=500 cache_hits=420 ...
 
 ---
 
-## 🧪 Tests (GoogleTest)
+## 🧪 Tests (24 GoogleTests)
 
-| Test | What It Verifies |
+| Test Suite | What It Verifies |
 |------|-----------------|
-| `test_lru_eviction_order` | LRU evicts the least recently used entry |
-| `test_lru_thread_safety` | No crashes under 8 concurrent threads |
-| `test_wal_append_and_recover` | Binary WAL survives "crash" and replays correctly |
-| `test_wal_checkpoint_clears_file` | Checkpoint truncates the WAL |
-| `test_memtable_set_get_del` | Basic CRUD + tombstone markers |
-| `test_memtable_size_tracking` | Byte count updates on insert/update |
-| `test_sstable_flush_and_lookup` | Data survives MemTable → SSTable flush |
-| `test_lsm_get_checks_cache_first` | Cache hits counted correctly |
-| `test_lsm_crash_recovery_via_wal` | Data survives engine restart |
+| `LRUCacheTest` (5) | Eviction order, access updates, thread safety, update, remove |
+| `WALTest` (2) | Binary append + recover, checkpoint truncation |
+| `MemTableTest` (3) | CRUD + tombstones, size tracking, sorted entries |
+| `SSTableTest` (3) | Flush/lookup, compaction merge, persistence across reload |
+| `LSMEngineTest` (5) | Set/Get, Delete, Cache hits, WAL crash recovery, flush |
+| `BloomFilterTest` (6) | Zero false negatives, FPR < 5%, empty filter, clear, memory, single element |
 
 ---
 
@@ -233,11 +244,12 @@ docker run -p 6379:6379 vaultdb
 |------|-------------|-----------------|
 | 1 | Open Vercel dashboard URL | "I built a full benchmark visualization pipeline" |
 | 2 | Show GitHub repo + commit history | Clean, incremental commits show engineering discipline |
-| 3 | Run `./build/vaultdb` + `nc localhost 6379` | Live demo of the actual TCP key-value store |
+| 3 | Run `./build/vaultdb` + `python3 cli/vault_cli.py` | Live demo with a professional interactive CLI |
 | 4 | Run `BENCH 50000` | Show real throughput numbers |
-| 5 | Kill server, restart, `GET` old key | Demonstrate WAL crash recovery |
-| 6 | Walk through architecture diagram | Explain LSM Tree write/read paths |
-| 7 | Show test suite: `cd build && ctest` | 18 passing tests = engineering rigor |
+| 5 | Run `STATS` → point out `bloom_saved` | "My Bloom Filter prevented X unnecessary disk reads" |
+| 6 | Kill server, restart, `GET` old key | Demonstrate WAL crash recovery |
+| 7 | Walk through architecture diagram | Explain LSM Tree write/read paths |
+| 8 | Show test suite: `cd build && ctest` | 24 passing tests = engineering rigor |
 
 ---
 

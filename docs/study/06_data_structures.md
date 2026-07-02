@@ -234,6 +234,89 @@ GET "mykey"
 
 ---
 
+## 6.7 Bloom Filter — Probabilistic Disk I/O Saver
+
+### What problem does it solve?
+When you `GET "key123"`, VaultDB checks each SSTable on disk. If there are 5 SSTables and the key only exists in the newest one, VaultDB still opens and reads the other 4 files for nothing. That's 4 wasted disk reads!
+
+### What is a Bloom Filter?
+A **space-efficient probabilistic data structure** that can answer:
+- "Is this key **definitely NOT** in this SSTable?" → 100% accurate
+- "Is this key **maybe** in this SSTable?" → Small chance of being wrong (~1.7%)
+
+### How it works — Bit Array + Multiple Hash Functions:
+
+```
+Bloom Filter (bit array of 10,000 bits, initially all 0):
+[0][0][0][0][0][0][0][0][0][0]...[0][0][0][0]
+
+add("hello"):
+  hash1("hello") % 10000 = 42    → set bit 42 to 1
+  hash2("hello") % 10000 = 7831  → set bit 7831 to 1
+  hash3("hello") % 10000 = 1203  → set bit 1203 to 1
+
+[0]...[1]...[1]...[1]...[0]
+       ^42   ^1203 ^7831
+
+might_contain("hello"):
+  Check bit 42   → 1 ✓
+  Check bit 7831 → 1 ✓
+  Check bit 1203 → 1 ✓
+  All 3 are set → "MIGHT be present" ✓
+
+might_contain("world"):
+  Check bit 99   → 0 ✗
+  At least one 0 → "DEFINITELY not present" ✓ (saved a disk read!)
+```
+
+### Why false positives happen:
+Different keys can hash to the same bit positions. If "hello" sets bits 42, 1203, 7831, and later "cat" sets bits 42, 500, 7831, then checking for "dog" (which hashes to 42, 1203, 7831) would find all bits already set and incorrectly say "might contain." This is rare (~1.7%) and harmless — it just means we do a disk read that finds nothing.
+
+### VaultDB's implementation:
+```cpp
+class BloomFilter {
+    std::vector<bool> bits_;     // Compact bit array
+    size_t num_bits_;            // Total number of bits
+
+    // Three hash functions for independent bit positions
+    size_t hash1(const std::string& key) const;  // FNV-1a
+    size_t hash2(const std::string& key) const;  // FNV-1a (different seed)
+    size_t hash3(const std::string& key) const;  // DJB2a
+};
+```
+
+### Integration with SSTable:
+```cpp
+// On flush (writing MemTable to disk):
+bloom_filter_ = BloomFilter(entries.size());
+for (const auto& [key, value] : entries) {
+    bloom_filter_.add(key);  // Add every key to the filter
+}
+
+// On get (reading from disk):
+if (!bloom_filter_.might_contain(key)) {
+    return std::nullopt;  // Skip disk I/O entirely!
+}
+// Only reach here if Bloom Filter says "maybe"
+// Proceed with sparse index binary search + linear scan
+```
+
+### The math:
+- **Bits per element (m/n):** 10 bits per key
+- **Hash functions (k):** 3
+- **False Positive Rate:** FPR ≈ (1 - e^(-kn/m))^k ≈ 1.7%
+- **Memory:** 10,000 keys × 10 bits = 12.5 KB (tiny!)
+
+### Impact on VaultDB:
+With 5 SSTables and a random GET for a key that exists in only one:
+- **Without Bloom Filter:** 5 file opens + 5 binary searches = slow
+- **With Bloom Filter:** 1 file open + 1 binary search + 4 instant rejections = fast
+- **Result:** ~80% fewer disk reads for cache-miss lookups
+
+You can see the exact count by running `STATS` — the `bloom_saved` field shows how many disk reads were prevented.
+
+---
+
 ## Summary
 
 | Structure | Where | Why Chosen | Complexity |
@@ -242,4 +325,6 @@ GET "mykey"
 | MemTable (std::map) | Memory | Sorted buffer for sequential flush | O(log n) insert |
 | WAL | Disk | Crash recovery | O(1) append |
 | SSTable | Disk | Sorted immutable file + sparse index | O(log n) lookup |
+| Bloom Filter | Memory | Skip SSTables that don't have the key | O(1) check |
 | LSM Tree | Architecture | Optimizes for write throughput | Amortized O(log n) |
+
