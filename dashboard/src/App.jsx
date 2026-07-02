@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Database, Zap, Activity, HardDrive } from 'lucide-react';
+import BloomFilterVisualizer from './components/BloomFilterVisualizer';
 import './index.css';
 
 function App() {
@@ -135,6 +136,8 @@ function App() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <BloomFilterVisualizer />
 
       <div className="architecture-panel">
         <h2>LSM-Tree Architecture Flow</h2>
