@@ -1,0 +1,126 @@
+.web-terminal-container {
+  background: #0f172a;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  overflow: hidden;
+  margin-top: 32px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.web-terminal-header {
+  background: #1e293b;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+}
+
+.terminal-dots {
+  display: flex;
+  gap: 6px;
+  margin-right: 16px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.dot.red { background: #ef4444; }
+.dot.yellow { background: #f59e0b; }
+.dot.green { background: #10b981; }
+
+.terminal-title {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.web-terminal-body {
+  padding: 16px;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-history {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.terminal-history::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-history::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.terminal-history::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.terminal-line {
+  margin-bottom: 4px;
+  word-wrap: break-word;
+}
+
+.prompt {
+  color: #3b82f6;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.icon {
+  margin-right: 4px;
+}
+
+.line-system {
+  color: #64748b;
+  font-style: italic;
+}
+
+.line-command {
+  color: #f8fafc;
+}
+
+.line-success {
+  color: #10b981;
+  font-weight: bold;
+}
+
+.line-error {
+  color: #ef4444;
+}
+
+.line-value {
+  color: #f59e0b;
+}
+
+.terminal-input-form {
+  display: flex;
+  align-items: center;
+}
+
+.terminal-input {
+  flex-grow: 1;
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  padding: 0;
+}
+
+.terminal-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

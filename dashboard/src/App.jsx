@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Database, Zap, Activity, HardDrive } from 'lucide-react';
+import { Database, Zap, Activity, HardDrive, Wifi, WifiOff } from 'lucide-react';
 import BloomFilterVisualizer from './components/BloomFilterVisualizer';
+import WebTerminal from './components/WebTerminal';
 import './index.css';
 
 function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Live Mode States
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [liveData, setLiveData] = useState(null);
+  const [liveError, setLiveError] = useState(null);
 
   useEffect(() => {
     fetch('/results.json')
@@ -24,6 +30,40 @@ function App() {
         setLoading(false);
       });
   }, []);
+
+  // Live Polling Effect
+  useEffect(() => {
+    let intervalId;
+    
+    const fetchLiveStats = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/stats');
+        if (!response.ok) throw new Error('API Error');
+        const json = await response.json();
+        
+        if (json.status === 'online') {
+          setLiveData(json);
+          setLiveError(null);
+        } else {
+          setLiveError('VaultDB is Offline');
+        }
+      } catch (err) {
+        setLiveError('Connection Refused. Is API Bridge running?');
+      }
+    };
+
+    if (isLiveMode) {
+      fetchLiveStats(); // Fetch immediately
+      intervalId = setInterval(fetchLiveStats, 1000); // Then poll every second
+    } else {
+      setLiveData(null);
+      setLiveError(null);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isLiveMode]);
 
   if (loading) return <div className="loading">Loading benchmark data...</div>;
   if (error) return <div className="error">Error: {error}</div>;
@@ -64,42 +104,78 @@ function App() {
   return (
     <div className="dashboard-container">
       <header className="header">
-        <h1>VaultDB Benchmark Dashboard</h1>
+        <div className="header-title-row">
+          <h1>VaultDB Benchmark Dashboard</h1>
+          <button 
+            className={`live-toggle-btn ${isLiveMode ? 'active' : ''}`}
+            onClick={() => setIsLiveMode(!isLiveMode)}
+          >
+            {isLiveMode ? <Wifi size={18} /> : <WifiOff size={18} />}
+            {isLiveMode ? 'Live Mode: ON' : 'Live Mode: OFF'}
+          </button>
+        </div>
         <div className="timestamp">
-          Last Run: {new Date(data.timestamp).toLocaleString()}
+          {isLiveMode 
+            ? <span className={liveError ? 'status-error' : 'status-ok'}>
+                {liveError || 'Connected to localhost:6379 via API Bridge'}
+              </span>
+            : `Last Run: ${new Date(data.timestamp).toLocaleString()}`
+          }
         </div>
       </header>
 
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <div className="metric-title">
-            <Zap size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
-            Write Throughput
+      {/* Conditional rendering for Live Metrics vs Static Benchmark Config */}
+      {isLiveMode && liveData ? (
+        <div className="metrics-grid live-metrics-grid">
+          <div className="metric-card live-card">
+            <div className="metric-title">Cache Hit Rate</div>
+            <div className="metric-value text-blue">{liveData.cache_hit_rate || 0}<span style={{fontSize: '1rem', color: '#9ca3af'}}>%</span></div>
           </div>
-          <div className="metric-value">{formatNumber(data.write.ops_per_sec)} <span style={{fontSize: '1rem', color: '#9ca3af', fontWeight: 'normal'}}>ops/sec</span></div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-title">
-            <Activity size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
-            Read Throughput
+          <div className="metric-card live-card">
+            <div className="metric-title">Bloom Filter Saves</div>
+            <div className="metric-value text-green">{formatNumber(liveData.bloom_saved || 0)}</div>
           </div>
-          <div className="metric-value">{formatNumber(data.read.ops_per_sec)} <span style={{fontSize: '1rem', color: '#9ca3af', fontWeight: 'normal'}}>ops/sec</span></div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-title">
-            <Database size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
-            Operations Config
+          <div className="metric-card live-card">
+            <div className="metric-title">MemTable Size</div>
+            <div className="metric-value text-purple">{((liveData.memtable_bytes || 0) / 1024 / 1024).toFixed(2)} <span style={{fontSize: '1rem', color: '#9ca3af'}}>MB</span></div>
           </div>
-          <div className="metric-value">{formatNumber(data.config.ops)}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-title">
-            <HardDrive size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
-            Concurrency
+          <div className="metric-card live-card">
+            <div className="metric-title">Total Keys (Writes)</div>
+            <div className="metric-value text-yellow">{formatNumber(liveData.writes || 0)}</div>
           </div>
-          <div className="metric-value">{data.config.threads} <span style={{fontSize: '1rem', color: '#9ca3af', fontWeight: 'normal'}}>threads</span></div>
         </div>
-      </div>
+      ) : (
+        <div className="metrics-grid">
+          <div className="metric-card">
+            <div className="metric-title">
+              <Zap size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
+              Write Throughput
+            </div>
+            <div className="metric-value">{formatNumber(data.write.ops_per_sec)} <span style={{fontSize: '1rem', color: '#9ca3af', fontWeight: 'normal'}}>ops/sec</span></div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-title">
+              <Activity size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
+              Read Throughput
+            </div>
+            <div className="metric-value">{formatNumber(data.read.ops_per_sec)} <span style={{fontSize: '1rem', color: '#9ca3af', fontWeight: 'normal'}}>ops/sec</span></div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-title">
+              <Database size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
+              Operations Config
+            </div>
+            <div className="metric-value">{formatNumber(data.config.ops)}</div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-title">
+              <HardDrive size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }} />
+              Concurrency
+            </div>
+            <div className="metric-value">{data.config.threads} <span style={{fontSize: '1rem', color: '#9ca3af', fontWeight: 'normal'}}>threads</span></div>
+          </div>
+        </div>
+      )}
 
       <div className="charts-grid">
         <div className="chart-panel">
@@ -136,6 +212,8 @@ function App() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <WebTerminal isLiveMode={isLiveMode} />
 
       <BloomFilterVisualizer />
 
