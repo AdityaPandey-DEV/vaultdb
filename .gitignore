@@ -1,0 +1,12 @@
+.env
+build/
+data/
+*.o
+*.a
+CMakeCache.txt
+CMakeFiles/
+.DS_Store
+node_modules/
+dist/
+mlruns/
+__pycache__/
