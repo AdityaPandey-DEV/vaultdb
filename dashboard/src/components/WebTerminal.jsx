@@ -24,7 +24,7 @@ const WebTerminal = ({ isLiveMode }) => {
   }, [isLiveMode]);
 
   useEffect(() => {
-    endOfHistoryRef.current?.scrollIntoView({ behavior: 'smooth' });
+    endOfHistoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [history]);
 
   const handleSubmit = async (e) => {
