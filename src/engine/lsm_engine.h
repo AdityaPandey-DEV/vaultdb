@@ -91,6 +91,7 @@ public:
         size_t memtable_entries;
         size_t sstable_count;
         double cache_hit_rate;
+        size_t bloom_filter_saved_reads;
     };
 
     Stats get_stats();
@@ -132,6 +133,7 @@ private:
     std::atomic<size_t> write_count_{0};
     std::atomic<size_t> read_count_{0};
     std::atomic<size_t> cache_hits_{0};
+    std::atomic<size_t> bloom_saved_{0};
 };
 
 }  // namespace vaultdb

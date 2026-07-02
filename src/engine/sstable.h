@@ -26,6 +26,8 @@
 #include <vector>
 #include <filesystem>
 
+#include "bloom_filter.h"
+
 namespace vaultdb {
 
 struct SparseIndexEntry {
@@ -81,6 +83,13 @@ public:
     const std::string& path() const { return path_; }
     size_t entry_count() const { return entry_count_; }
 
+    /**
+     * Check the Bloom Filter for a key without touching disk.
+     * @return false = key is definitely NOT here (skip disk I/O)
+     *         true  = key might be here (proceed with disk lookup)
+     */
+    bool bloom_might_contain(const std::string& key) const;
+
 private:
     /**
      * Build the sparse index from an existing SSTable file.
@@ -90,6 +99,7 @@ private:
 
     std::string path_;
     std::vector<SparseIndexEntry> sparse_index_;
+    BloomFilter bloom_filter_;
     std::mutex mutex_;
     size_t entry_count_ = 0;
 };

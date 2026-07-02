@@ -28,6 +28,10 @@ void SSTable::flush(const std::vector<std::pair<std::string, std::string>>& entr
 
     std::ofstream file(path_, std::ios::binary | std::ios::trunc);
     sparse_index_.clear();
+
+    // Rebuild the Bloom Filter sized for the number of entries
+    bloom_filter_ = BloomFilter(entries.size() > 0 ? entries.size() : 1);
+
     size_t count = 0;
 
     for (const auto& [key, value] : entries) {
@@ -35,6 +39,9 @@ void SSTable::flush(const std::vector<std::pair<std::string, std::string>>& entr
         if (count % 100 == 0) {
             sparse_index_.push_back({key, file.tellp()});
         }
+
+        // Add key to Bloom Filter for fast negative lookups
+        bloom_filter_.add(key);
 
         uint32_t key_len = static_cast<uint32_t>(key.size());
         uint32_t val_len = static_cast<uint32_t>(value.size());
@@ -52,6 +59,12 @@ void SSTable::flush(const std::vector<std::pair<std::string, std::string>>& entr
 
 std::optional<std::string> SSTable::get(const std::string& key) {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    // Bloom Filter check — if it says NO, the key is definitely not here.
+    // This saves us from opening the file and doing any disk I/O.
+    if (!bloom_filter_.might_contain(key)) {
+        return std::nullopt;
+    }
 
     if (sparse_index_.empty()) return std::nullopt;
 
@@ -164,6 +177,9 @@ void SSTable::build_sparse_index() {
     sparse_index_.clear();
     size_t count = 0;
 
+    // First pass: count entries to size the Bloom Filter
+    std::vector<std::string> keys;
+
     while (file.peek() != EOF) {
         std::streamoff offset = file.tellg();
         uint32_t key_len, val_len;
@@ -183,10 +199,22 @@ void SSTable::build_sparse_index() {
         if (count % 100 == 0) {
             sparse_index_.push_back({key, offset});
         }
+
+        keys.push_back(std::move(key));
         count++;
     }
 
     entry_count_ = count;
+
+    // Build the Bloom Filter from all keys
+    bloom_filter_ = BloomFilter(count > 0 ? count : 1);
+    for (const auto& k : keys) {
+        bloom_filter_.add(k);
+    }
+}
+
+bool SSTable::bloom_might_contain(const std::string& key) const {
+    return bloom_filter_.might_contain(key);
 }
 
 }  // namespace vaultdb

@@ -13,6 +13,7 @@ set(VAULTDB_SOURCES
     src/engine/wal.cpp
     src/engine/memtable.cpp
     src/engine/sstable.cpp
+    src/engine/bloom_filter.cpp
     src/engine/lsm_engine.cpp
     src/protocol/parser.cpp
     src/server/connection.cpp
@@ -43,6 +44,7 @@ add_executable(vaultdb_tests
     tests/test_memtable.cpp
     tests/test_sstable.cpp
     tests/test_lsm_engine.cpp
+    tests/test_bloom_filter.cpp
     ${VAULTDB_SOURCES}
 )
 target_include_directories(vaultdb_tests PRIVATE src)

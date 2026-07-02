@@ -125,6 +125,7 @@ std::string Parser::execute(const Command& cmd, LSMEngine& engine) {
             << " memtable_entries=" << stats.memtable_entries
             << " sstables=" << stats.sstable_count
             << " cache_hit_rate=" << static_cast<int>(stats.cache_hit_rate) << "%"
+            << " bloom_saved=" << stats.bloom_filter_saved_reads
             << "\n";
         return oss.str();
     }

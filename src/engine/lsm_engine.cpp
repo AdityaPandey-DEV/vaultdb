@@ -113,6 +113,13 @@ std::optional<std::string> LSMEngine::get(const std::string& key) {
     // Step 3: Check SSTables newest to oldest — O(log n) per table
     // Newest first because newer values supersede older ones
     for (auto it = sstables_.rbegin(); it != sstables_.rend(); ++it) {
+        // Bloom Filter pre-check: skip this SSTable entirely if the
+        // filter says the key is definitely not present
+        if (!(*it)->bloom_might_contain(key)) {
+            bloom_saved_++;
+            continue;
+        }
+
         auto disk_result = (*it)->get(key);
         if (disk_result.has_value()) {
             if (disk_result.value() == TOMBSTONE) return std::nullopt;
@@ -151,6 +158,7 @@ LSMEngine::Stats LSMEngine::get_stats() {
         read_count_ > 0
             ? static_cast<double>(cache_hits_) / read_count_ * 100.0
             : 0.0,
+        bloom_saved_,
     };
 }
 
