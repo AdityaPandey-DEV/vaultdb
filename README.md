@@ -93,7 +93,7 @@ cd ..
 # 🔒 VaultDB listening on port 6379
 ```
 
-### Test
+### Open New Terminal for Test and write
 ```bash
 cd build
 ctest --verbose
