@@ -63,6 +63,8 @@ The storage engine writes to a **Write-Ahead Log** for crash recovery, buffers d
 | **TCP Server** | select()-based non-blocking I/O. Redis-compatible port 6379. |
 | **Protocol** | Text protocol: SET/GET/DEL/TTL/PING/BENCH/STATS commands. |
 | **vault-cli** | Interactive Python CLI with colorized output for live demos. |
+| **API Bridge** | Zero-dependency Python HTTP server bridging REST → TCP for the dashboard. |
+| **Live Dashboard** | React dashboard with real-time polling, Bloom Filter visualizer, and web terminal. |
 | **Benchmark** | Python client measuring ops/sec and p50/p95/p99 latency. |
 
 ---
@@ -103,6 +105,21 @@ python3 cli/vault_cli.py
 
 # Or use raw netcat
 nc localhost 6379
+```
+
+### Live Dashboard (Full-Stack Mode)
+```bash
+# Terminal 1: Start VaultDB
+./build/vaultdb
+
+# Terminal 2: Start API Bridge (connects React → C++ via HTTP → TCP)
+python3 api/dashboard_api.py
+# API Bridge running on http://localhost:5005
+
+# Terminal 3: Start the React Dashboard
+cd dashboard && npm run dev
+# Open http://localhost:5173 in your browser
+# Click "Live Mode: ON" to see real-time metrics!
 ```
 
 ### Benchmark
@@ -198,7 +215,7 @@ VaultDB uses a **split deployment** strategy — the dashboard is always online 
 
 ### 1. Dashboard → Vercel (Free, Always Online)
 
-The React dashboard is a **static site** that reads from a pre-generated `results.json`. No backend needed.
+The React dashboard is a **static site** that reads from a pre-generated `results.json`. No backend needed for the static view. It also includes an **Interactive Bloom Filter Visualizer** that runs entirely in the browser.
 
 **Deploy in 3 steps:**
 1. Go to [vercel.com](https://vercel.com) → Sign in with GitHub
@@ -209,26 +226,25 @@ That's it. Vercel auto-detects Vite and builds it. You'll get a URL like `vaultd
 
 > **Re-running benchmarks?** After `bash benchmark/run_benchmark.sh`, the script copies `results.json` into `dashboard/public/`. Commit and push → Vercel auto-redeploys with fresh data.
 
-### 2. C++ Server → Local Demo (Interview)
+### 2. Full-Stack Live Demo → Local (Interview)
 
-During an interview, open a terminal and show VaultDB running live:
+During an interview, run all 3 services locally to show the full-stack architecture:
 
 ```bash
-# Terminal 1: Start VaultDB
+# Terminal 1: Start the C++ Database Engine
 ./build/vaultdb
-# 🔒 VaultDB listening on port 6379
 
-# Terminal 2: Demo commands
-nc localhost 6379
-SET user:1 "Aditya Pandey"
-GET user:1              → VALUE Aditya Pandey
-TTL session 30 abc123   → OK (expires in 30s)
-PING                    → PONG
-BENCH 50000             → OK 50000 ops in 625ms (80000 ops/sec)
-STATS                   → STATS writes=... reads=... cache_hits=...
-DEL user:1              → OK
-GET user:1              → NULL
+# Terminal 2: Start the Python API Bridge (HTTP → TCP)
+python3 api/dashboard_api.py
+
+# Terminal 3: Start the React Dashboard
+cd dashboard && npm run dev
 ```
+
+Now open `http://localhost:5173` in your browser:
+- Click **"Live Mode: ON"** → the dashboard polls your C++ server every second for real-time stats
+- Use the **Web Terminal** to type SET/GET/DEL commands directly in the browser
+- Scroll to the **Bloom Filter Visualizer** to demonstrate how the probabilistic data structure works
 
 ### 3. Docker (Optional — Portable Demo)
 
@@ -244,12 +260,40 @@ docker run -p 6379:6379 vaultdb
 |------|-------------|-----------------|
 | 1 | Open Vercel dashboard URL | "I built a full benchmark visualization pipeline" |
 | 2 | Show GitHub repo + commit history | Clean, incremental commits show engineering discipline |
-| 3 | Run `./build/vaultdb` + `python3 cli/vault_cli.py` | Live demo with a professional interactive CLI |
-| 4 | Run `BENCH 50000` | Show real throughput numbers |
-| 5 | Run `STATS` → point out `bloom_saved` | "My Bloom Filter prevented X unnecessary disk reads" |
-| 6 | Kill server, restart, `GET` old key | Demonstrate WAL crash recovery |
-| 7 | Walk through architecture diagram | Explain LSM Tree write/read paths |
-| 8 | Show test suite: `cd build && ctest` | 24 passing tests = engineering rigor |
+| 3 | Start `./build/vaultdb` + `python3 api/dashboard_api.py` + `npm run dev` | Full-stack: C++ → Python API → React frontend |
+| 4 | Click **"Live Mode: ON"** in the dashboard | Real-time metrics prove the full-stack bridge works |
+| 5 | Type `SET name aditya` in the **Web Terminal** | "I can interact with my C++ engine directly from the browser" |
+| 6 | Run `BENCH 50000` via CLI or Web Terminal | Watch the live metrics cards jump in real-time |
+| 7 | Show `STATS` → point out `bloom_saved` | "My Bloom Filter prevented X unnecessary disk reads" |
+| 8 | Demo the **Bloom Filter Visualizer** | Type keys, watch bits light up — proves you understand the algorithm |
+| 9 | Kill server, restart, `GET` old key | Demonstrate WAL crash recovery |
+| 10 | Show test suite: `cd build && ctest` | 24 passing tests = engineering rigor |
+
+---
+
+## 📁 Project Structure
+
+```
+vaultdb/
+├── src/
+│   ├── engine/          # Core storage engine (LSM, MemTable, SSTable, WAL, Cache, Bloom Filter)
+│   ├── protocol/        # TCP server + command parser
+│   └── main.cpp         # Entry point
+├── api/
+│   └── dashboard_api.py # Python HTTP→TCP API Bridge (port 5005)
+├── cli/
+│   └── vault_cli.py     # Interactive Python CLI (Redis-like)
+├── dashboard/           # React + Vite dashboard
+│   └── src/
+│       ├── App.jsx              # Main dashboard with Live Mode toggle
+│       └── components/
+│           ├── BloomFilterVisualizer.jsx  # Interactive Bloom Filter demo
+│           └── WebTerminal.jsx           # Browser-based terminal
+├── benchmark/           # Python benchmark client
+├── tests/               # GoogleTest test suites (24 tests)
+├── docs/study/          # C++ study guide for interview prep
+└── CMakeLists.txt
+```
 
 ---
 
