@@ -181,9 +181,63 @@ STATS                    → STATS writes=1000 reads=500 cache_hits=420 ...
 
 ---
 
-## 🚀 Deployment Note
+## 🚀 Deployment & Interview Demo
 
-VaultDB C++ server runs locally or in Docker (not deployed to cloud — C++ servers don't fit free cloud tiers). The benchmark dashboard (React) can be deployed to Vercel as a static site.
+VaultDB uses a **split deployment** strategy — the dashboard is always online for recruiters to visit, while the C++ engine runs locally to demonstrate systems-level skills.
+
+### 1. Dashboard → Vercel (Free, Always Online)
+
+The React dashboard is a **static site** that reads from a pre-generated `results.json`. No backend needed.
+
+**Deploy in 3 steps:**
+1. Go to [vercel.com](https://vercel.com) → Sign in with GitHub
+2. Click **"Add New Project"** → Import `AdityaPandey-DEV/vaultdb`
+3. Set **Root Directory** to `dashboard` → Click **Deploy**
+
+That's it. Vercel auto-detects Vite and builds it. You'll get a URL like `vaultdb-dashboard.vercel.app` to share with recruiters.
+
+> **Re-running benchmarks?** After `bash benchmark/run_benchmark.sh`, the script copies `results.json` into `dashboard/public/`. Commit and push → Vercel auto-redeploys with fresh data.
+
+### 2. C++ Server → Local Demo (Interview)
+
+During an interview, open a terminal and show VaultDB running live:
+
+```bash
+# Terminal 1: Start VaultDB
+./build/vaultdb
+# 🔒 VaultDB listening on port 6379
+
+# Terminal 2: Demo commands
+nc localhost 6379
+SET user:1 "Aditya Pandey"
+GET user:1              → VALUE Aditya Pandey
+TTL session 30 abc123   → OK (expires in 30s)
+PING                    → PONG
+BENCH 50000             → OK 50000 ops in 625ms (80000 ops/sec)
+STATS                   → STATS writes=... reads=... cache_hits=...
+DEL user:1              → OK
+GET user:1              → NULL
+```
+
+### 3. Docker (Optional — Portable Demo)
+
+```bash
+docker build -t vaultdb .
+docker run -p 6379:6379 vaultdb
+# Now connect from another terminal: nc localhost 6379
+```
+
+### Interview Demo Flow (Recommended)
+
+| Step | What to Show | Why It Impresses |
+|------|-------------|-----------------|
+| 1 | Open Vercel dashboard URL | "I built a full benchmark visualization pipeline" |
+| 2 | Show GitHub repo + commit history | Clean, incremental commits show engineering discipline |
+| 3 | Run `./build/vaultdb` + `nc localhost 6379` | Live demo of the actual TCP key-value store |
+| 4 | Run `BENCH 50000` | Show real throughput numbers |
+| 5 | Kill server, restart, `GET` old key | Demonstrate WAL crash recovery |
+| 6 | Walk through architecture diagram | Explain LSM Tree write/read paths |
+| 7 | Show test suite: `cd build && ctest` | 18 passing tests = engineering rigor |
 
 ---
 
